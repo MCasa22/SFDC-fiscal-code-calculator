@@ -83,8 +83,10 @@ public class FiscalCode {
                 System.debug('nameVowels is <'+nameVowels+'> at iteration number <'+j+'>');
             }
         }
-        // new 3 letter char code with consonants and vowels
-        charCode = charCode.rightPad(3,nameVowels);
+        // new 3 letter char code with consonants and vowels.
+        // padding and trimming are needed for cases where we have a 2 characters long charCode (e.g.: "Mario Li")
+        charCode = (charCode + nameVowels + '   ').substring(0,3).trim();
+        
         System.debug('charCode is <'+charCode+'> after padding with vowels <'+nameVowels+'>');
         if(charCode.length() == 3) return charCode;
         // last resort, pad with X's
