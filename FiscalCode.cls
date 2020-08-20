@@ -28,7 +28,7 @@ public class FiscalCode {
             return ( partialFiscalCode + calcCtrlChar(partialFiscalCode) );
         
         } catch (Exception e) {
-            throw new FiscalCodeException('Error during fiscal code calculation: '+e.getStackTraceString());    
+            throw new FiscalCodeException('Error during fiscal code calculation: '+ e.getMessage() + ' | ' + e.getCause() + ' | ' + e.getStackTraceString());    
         }
     }
 
@@ -54,7 +54,7 @@ public class FiscalCode {
 
         String charCode=''; // the 3 char code to return
         String nameVowels=''; //used in case the name has less than 3 consonants
-        name = name.replace(' ','').toUpperCase();
+        name = checkForBadChars(name);
         System.debug('Name to handle is: <'+name+'>');
         Integer length = name.length();
 
@@ -62,7 +62,7 @@ public class FiscalCode {
         for(Integer i=0;i<length;i++){
             String curLetter = name.substring(i,i+1);
             System.debug('checking letter: <'+curLetter+'>');
-            if(!vowels.contains(curLetter)){
+            if(!VOWELS.contains(curLetter)){
                 charCode+=curLetter;
                 System.debug('charCode is <'+charCode+'> at iteration number <'+i+'>');
             }
@@ -78,7 +78,7 @@ public class FiscalCode {
         for(Integer j=0;j<length;j++){
             String curLetter = name.substring(j,j+1);
             System.debug('checking letter: <'+curLetter+'>');
-            if(vowels.contains(curLetter)){
+            if(VOWELS.contains(curLetter)){
                 nameVowels+=curLetter;
                 System.debug('nameVowels is <'+nameVowels+'> at iteration number <'+j+'>');
             }
@@ -99,7 +99,7 @@ public class FiscalCode {
      */
     private static String calcBirthDate (Date birthDate, String sex) {
         String yearChar = String.valueOf( birthDate.year() ).substring(2,4);
-        String monthChar = months.get(birthDate.month());
+        String monthChar = MONTHS.get(birthDate.month());
         Integer days = birthDate.day();
         String dayChar;
 
@@ -124,7 +124,7 @@ public class FiscalCode {
         List<Some_custom_metadata__mdt> codeList = [SELECT City__c, code__c 
                                                         FROM Some_custom_metadata__mdt 
                                                         WHERE City__c = :birthPlace];
-        if(codeList == null) throw new FiscalCodeException('UNKNOWN_BIRTH_PLACE | '+birthPlace+' is not a recognized city');
+        if(codeList.isEmpty()) throw new FiscalCodeException('UNKNOWN_BIRTH_PLACE | '+birthPlace+' is not a recognized city');
         return codelist[0].code__c;
          */
         return 'F205';
@@ -141,21 +141,33 @@ public class FiscalCode {
 
         for(Integer k=0;k<length;k++){
             String curLetter = partialCode.substring(k,k+1);
-            // X: consider chars in even positions, convert them using evenChars map and sum them
+            // X: consider chars in even positions, convert them using EVEN_CHARS map and sum them
             if(Math.mod(k,2)==0)
             {
-                oddSum += oddChars.get(curLetter);
+                oddSum += ODD_CHARS.get(curLetter);
             } 
-            // Y: consider chars in odd positions, convert them using oddChars map and sum them
+            // Y: consider chars in odd positions, convert them using ODD_CHARS map and sum them
             else 
             {
-                evenSum += evenChars.get(curLetter);
+                evenSum += EVEN_CHARS.get(curLetter);
             }
         }
         // calculate modulus of the sum
         Integer rest = Math.mod((evenSum + oddSum),26);
-        // convert the modulus using ctrlChars map
-        return ( ctrlChars.get(rest) );
+        // convert the modulus using CTRL_CHARS map
+        return ( CTRL_CHARS.get(rest) );
+    }
+
+    /**
+     *  Switches possible accented letters with their non-accented version and eliminates apostrophes
+     */
+    private static String checkForBadChars(String name){
+        String newName = name;
+        for(String badChar : BAD_CHARS.keySet()){
+            newName = newName.replace(badChar, BAD_CHARS.get(badChar));
+        }
+        System.debug('FiscalCode.checkForBadChars | name was ' + name + ' and now is ' + newName.toUpperCase());
+        return newName.toUpperCase();
     }
 
     /**
@@ -189,10 +201,10 @@ public class FiscalCode {
 
     private static final string CF_PATTERN = '^([A-Za-z]{6}[0-9lmnpqrstuvLMNPQRSTUV]{2}[abcdehlmprstABCDEHLMPRST]{1}[0-9lmnpqrstuvLMNPQRSTUV]{2}[A-Za-z]{1}[0-9lmnpqrstuvLMNPQRSTUV]{3}[A-Za-z]{1})|([0-9]{11})$';  
 
-    private static final List<String> vowels = new List<String>{'A','E','I','O','U','a','e','i','o','u'};
+    private static final List<String> VOWELS = new List<String>{'A','E','I','O','U','a','e','i','o','u'};
 
     // month in numerical order: january = 1, august = 8, etc...
-    private static final Map<Integer, String> months = new Map<Integer, String>{
+    private static final Map<Integer, String> MONTHS = new Map<Integer, String>{
         1   => 'A',
         2   => 'B',
         3   => 'C',
@@ -207,7 +219,7 @@ public class FiscalCode {
         12  => 'T'
     };
 
-    private static final Map<String, Integer> evenChars = new Map<String, Integer>{
+    private static final Map<String, Integer> EVEN_CHARS = new Map<String, Integer>{
         '0' =>  0,
         '1' =>  1,
         '2' =>  2,
@@ -246,7 +258,7 @@ public class FiscalCode {
         'Z' =>  25
     };
 
-    private static final Map<String, Integer> oddChars = new Map<String, Integer>{
+    private static final Map<String, Integer> ODD_CHARS = new Map<String, Integer>{
         '0' =>  1,
         '1' =>  0,
         '2' =>  5,
@@ -285,7 +297,7 @@ public class FiscalCode {
         'Z' =>  23
     }; 
 
-    private static final Map<Integer, String> ctrlChars = new Map<Integer, String>{
+    private static final Map<Integer, String> CTRL_CHARS = new Map<Integer, String>{
         0 =>  'A',
         1 =>  'B',
         2 =>  'C',
@@ -312,5 +324,20 @@ public class FiscalCode {
         23 =>  'X',
         24 =>  'Y',
         25 =>  'Z'
+    };
+
+    private static final Map<String,String> BAD_CHARS = new Map<String,String>{
+        '\''    => '',
+        ' '     => '',
+        'à'     => 'A',
+        'è'     => 'E',
+        'ì'     => 'I',
+        'ò'     => 'O',
+        'ù'     => 'U',
+        'À'     => 'A',
+        'É'     => 'E',
+        'Ì'     => 'I',
+        'Ò'     => 'O',
+        'Ù'     => 'U'        
     };
 }
